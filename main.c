@@ -9,6 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include <math.h>
+#include <assert.h>
 
 #include <sys/mman.h>
 #include <stdint.h>
@@ -21,17 +22,13 @@
 #define MAGIC_NUMBER_ONE 20.8
 #define MEASURE_FOR 1000
 #define SAMPLE_RATE 44100
+#define zero 0
 
 #include "kiss_fft.h"
+#include "kiss_fftr.h"
+
 
 int is_speech = 0;
-
-
-int x(void) {
-  kiss_fft_cfg mycfg = kiss_fft_alloc(512,0,NULL,NULL);
-  kiss_fft_cpx* in_buf = malloc(sizeof(kiss_fft_cpx)*512);
-  kiss_fft_cpx* out_buf = malloc(sizeof(kiss_fft_cpx)*512);
-}
 
 struct stats {
   int min_e;
@@ -39,24 +36,28 @@ struct stats {
   int min_sf;
 };
 
-
-long int get_frame_energy(int16_t frame[] , size_t  len) {
+long long get_frame_energy(int16_t frame[] , size_t  len) {
 
   long int i;
-  long int sum;
+  long long sum = 0;
 
   for (i = 0; i <= len; i++) {
-    sum = frame[i] + sum;
+
+    /* FIXME: not sure if this is supposed to be abs */
+
+    /* FIXME: no overflow check.. :(  */
+        sum = abs(frame[i]) + sum;
+
   }
 
-
+  assert(sum >=  0);
   return sum;
 }
 
-int get_sample_intensity(int16_t sample[], size_t len) {
+unsigned long long get_sample_intensity(int16_t sample[], size_t len) {
 
   long int intensity = 0;
-  long int sum_squared = 0;
+  unsigned long long sum_squared = 0;
 
   for (int i = 0; i <= len; i++) {
     int sample_squared = sample[i] * sample[i];
@@ -67,6 +68,24 @@ int get_sample_intensity(int16_t sample[], size_t len) {
 
   return (int) intensity;
 
+}
+
+/* Lots of playing around here */
+unsigned long long get_dom_freq_component (int16_t sample[], size_t len) {
+
+int is_inverse_fft = 1;
+
+    kiss_fftr_cfg st;
+    kiss_fft_scalar * rbuf;
+    kiss_fft_cpx * cbuf;
+
+    st = kiss_fftr_alloc( len , is_inverse_fft ,0,0);
+
+    rbuf = (kiss_fft_scalar*)malloc(sizeof(kiss_fft_scalar) * len );
+    cbuf = (kiss_fft_cpx*)malloc(sizeof(kiss_fft_cpx) * (len/2+1) );
+
+
+  return 1;
 }
 
 int arithmatic_mean(int16_t frame[], size_t len) {
@@ -85,17 +104,30 @@ int geometric_mean(int16_t frame[] , size_t len) {
   return pow(prod, 1.0/len );
 }
 
+int arithmetic_mean(int16_t frame[], size_t len) {
+
+
+  return 1;
+}
+
+
 /* This is the main loop */
 int compute_vad(int16_t frame[], int bytes_to_read, int frame_count, struct stats *s) {
 
   /* Compute the frame energy */
-  int energy = get_frame_energy(frame, bytes_to_read );
+  long long energy = get_frame_energy(frame, bytes_to_read );
+  printf("energy: %d\n", energy);
+  assert(energy >= 0 );
 
   /* FIXME: compute the most dominant freq component */
-  int most_dominant_freq_component = INT_MAX;
+  int most_dominant_freq_component = get_dom_freq_component(frame,bytes_to_read);
+  printf("dom_freq_comp: %d\n", most_dominant_freq_component);
+  assert(most_dominant_freq_component >= 0);
 
   /* FIXME: */
   int spectral_flatness = INT_MAX;
+  printf("spectral flatness %d\n", spectral_flatness);
+  assert(most_dominant_freq_component >= 0);
 
   /* FIXME: Supposing that some of the first 30 frames are silence */
   if (frame_count <= 30) {
@@ -109,15 +141,16 @@ int compute_vad(int16_t frame[], int bytes_to_read, int frame_count, struct stat
 
     if (energy <= s->min_e) {
       s->min_e = energy;
-      printf("NEW ENERGY MIN:          %d\n", energy);
+      printf("NEW ENERGY MIN:          %d\n", s->min_e);
     }
 
-
     if (most_dominant_freq_component < s->min_f) {
+      printf("NEW DOM FREQ MIN:        %d\n", s->min_f);
       s->min_f = most_dominant_freq_component;
     }
 
     if ( spectral_flatness < s->min_sf) {
+      printf("NEW SPEC FLAT MIN:       %d\n", s->min_sf);
       s->min_sf = spectral_flatness;
     }
 

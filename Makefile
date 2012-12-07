@@ -15,6 +15,5 @@ kiss_fft.o: kiss_fft.c _kiss_fft_guts.h
 main.o: main.c
 	 gcc $(ARGS) -std=gnu99 -c main.c
 
-clean: main
-	rm -rf *.o
-	rm -rf main 
+clean:
+	rm -rf *.o main

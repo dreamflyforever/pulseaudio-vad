@@ -22,7 +22,9 @@
 #define MAGIC_NUMBER_ONE 20.8
 #define MEASURE_FOR 1000
 #define SAMPLE_RATE 44100
-#define zero 0
+
+
+#define FIXED_POINT  16
 
 #include "kiss_fft.h"
 #include "kiss_fftr.h"
@@ -71,18 +73,38 @@ unsigned long long get_sample_intensity(int16_t sample[], size_t len) {
 }
 
 /* Lots of playing around here */
-unsigned long long get_dom_freq_component (int16_t sample[], size_t len) {
+int get_dom_freq_component (int16_t sample[], size_t len) {
+
 
 int is_inverse_fft = 1;
 
-    kiss_fftr_cfg st;
-    kiss_fft_scalar * rbuf;
-    kiss_fft_cpx * cbuf;
+int size = 320;
 
-    st = kiss_fftr_alloc( len , is_inverse_fft ,0,0);
+int isinverse = 1;
+kiss_fft_scalar zero;
 
-    rbuf = (kiss_fft_scalar*)malloc(sizeof(kiss_fft_scalar) * len );
-    cbuf = (kiss_fft_cpx*)malloc(sizeof(kiss_fft_cpx) * (len/2+1) );
+memset(&zero,0,sizeof(zero));
+
+kiss_fft_cpx fft_in[size];
+kiss_fft_cpx fft_out[size];
+kiss_fft_cpx fft_reconstructed[size];
+
+kiss_fftr_cfg fft = kiss_fftr_alloc(size*2 ,0 ,0,0);
+kiss_fftr_cfg ifft = kiss_fftr_alloc(size*2,isinverse,0,0);
+
+for (int i = 0; i < size; i++) {
+    fft_in[i].r = 1;
+    fft_in[i].i = zero;
+    fft_out[i].r = zero;
+    fft_out[i].i = zero;
+
+}
+
+ kiss_fftr(fft, (kiss_fft_scalar*) fft_in, fft_out);
+
+for (int i = 0; i < size; i++ ) {
+printf("FFT OUT: %d\n", fft_out[i]);
+}
 
 
   return 1;

@@ -1,5 +1,5 @@
 
-LIBS=`pkg-config libpulse-simple --cflags --libs` -lm 
+LIBS=`pkg-config libpulse-simple --cflags --libs` -lm
 args=""
 
 all: kiss_fftr.o kiss_fft.o main.o
@@ -14,6 +14,10 @@ kiss_fft.o: kiss_fft.c _kiss_fft_guts.h
 
 main.o: main.c
 	 gcc $(ARGS) -std=gnu99 -c main.c
+
+test_case:
+	 gcc test_fft.c kiss_fft*c -o test_fft -lm
+
 
 clean:
 	rm -rf *.o main
